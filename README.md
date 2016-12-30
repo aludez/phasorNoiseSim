@@ -20,4 +20,5 @@ At the bottom I put a function called doAll() with some phasorModel called a bun
 
 The files high_pass.txt, low_pass2.txt, H.csv and L.csv are included because they are referenced in the toyPhasorModel.  H and L are the HBA and LBA frequency responses, and high_pass and low_pass2 are the high and low pass filters responses we used in the anechoic chamber tests.
 
+I've also added a compilable, executable version (named noiseModelApp) as long as you have libRootFftwWrapper installed.  Inputs are the same as above but you can compile it with make and run it from the command line.
 # phasorNoiseSim
