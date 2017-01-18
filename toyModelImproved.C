@@ -31,7 +31,7 @@ At the bottom of the file is a doAll() function, which is just a placeholder to 
 */
 double findMaxInRangeAboutCenter(TGraph * g, int range);
 
-void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, const char * geometry = "box", int traces=500, const char * antenna_type = "vpol")
+void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, const char * geometry = "box", int traces=100, const char * antenna_type = "vpol", double temp = 75)
 {
   //set up where to save the file, get TTrees and TGraphs ready  
   TString dn = dist_name;
@@ -46,11 +46,11 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   TFile file2(fname2.Data(), "RECREATE");
   TTree * tree2 = new TTree("traces", "traces");
 */
-  TString fname3 = "simFiles/"+antType+"/"+antType+"_"+geoType+"_" + dn +"CorrHistosTEST.root"; 
+  TString fname3 = "simFiles/"+antType+"/"+antType+"_"+geoType+"_" + dn +"CorrHistos.root"; 
   TFile corrFile(fname3.Data(), "RECREATE");
 
 	TH1D * corrHisto = new TH1D("meanPeakCorr", "meanPeakCorr", 250, 0,1);
-	TH1D * rmsHisto = new TH1D("RMS", "RMS", 500, 0.01,0.1);
+	TH1D * rmsHisto = new TH1D("RMS", "RMS", 500, 0.0,0.1);
   
 	TGraph * g = 0;
   TGraph * g2 = 0;
@@ -113,7 +113,8 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   double x_time[9991];
 
   //for the amp noise 7.8 is ~45 mVrms and 7.06 is ~40.8 mVrms
-  double amp_noise = 7.06/sqrt(5); //this is ~75k noise temp amp noise
+	double R = 50.;
+	double kb = 1.38064852e-23; 
   double amp_phase_A = 0;
   double amp_phase_B = 0;
   double amp_mag_A = 0;
@@ -129,6 +130,8 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   //time and frequency steps for TGraphs
   double dt = 2*pow(10,-6)/9991;
   double dF = 1/( 9991 * dt);
+  amp_mean = sqrt(kb * 300 * R * dF) * sqrt(100000/phasor_num)/1.36;
+	double amp_noise = sqrt(kb * temp * R * dF);//7.06/sqrt(5); //this is ~75k noise temp amp noise
 
 	double causalTime = ant_sep/3e8;
 	int causalBins = TMath::Ceil(causalTime/dt);
@@ -266,7 +269,7 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
         amp_mag_B = amp_noise * sqrt(-2 * log(tr1.Uniform(0,1)));
         temp_A.setMagPhase(amp_mag_A, amp_phase_A);
         temp_B.setMagPhase(amp_mag_B, amp_phase_B);
-        fftw_A[i].re += temp_A.re;
+				fftw_A[i].re += temp_A.re;
         fftw_A[i].im += temp_A.im;
         fftw_B[i].re += temp_B.re;
         fftw_B[i].im += temp_B.im;
@@ -347,7 +350,7 @@ void doAll()
  
 	//these spacings are what I used for making the figure we used for GNO paper
   phasorModel("0_cm", 0);
-	
+/*	
 	phasorModel("270_cm", 2.7);
   phasorModel("150_cm", 1.5);
   phasorModel("65_cm", .65);
@@ -368,5 +371,5 @@ void doAll()
   phasorModel("space2", 1.1303);
   phasorModel("space4", 0.9398);
   phasorModel("space3", 1.7653);
-
+*/
 }
