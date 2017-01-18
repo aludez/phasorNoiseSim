@@ -31,28 +31,29 @@ At the bottom of the file is a doAll() function, which is just a placeholder to 
 */
 double findMaxInRangeAboutCenter(TGraph * g, int range);
 
-void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, const char * geometry = "box", int traces=100, const char * antenna_type = "vpol", double temp = 75)
+void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_num=100000, const char * geometry = "box", int traces=100, const char * antenna_type = "vpol", double temp = 75)
 {
   //set up where to save the file, get TTrees and TGraphs ready  
   TString dn = dist_name;
 	TString antType = antenna_type;
 	TString geoType = geometry;
- /* 
-  TString fname = "simFiles/"+antType+"/" + antType+"_" + geoType+"_" + dn + "_CH_1.root"; 
-  TFile file(fname.Data(), "RECREATE");
-  TTree * tree = new TTree("traces", "traces");
+
+	TString fname = "simFiles/"+antType+"/" + antType+"_" + geoType+"_" + dn + "_CH_1.root"; 
+	TFile file(fname.Data(), "RECREATE");
+	TTree * tree = new TTree("traces", "traces");
   
-  TString fname2 = "simFiles/"+antType + "/"+antType+"_"+geoType+"_" + dn + "_CH_4.root"; 
-  TFile file2(fname2.Data(), "RECREATE");
-  TTree * tree2 = new TTree("traces", "traces");
-*/
-  TString fname3 = "simFiles/"+antType+"/"+antType+"_"+geoType+"_" + dn +"CorrHistos.root"; 
+	TString fname2 = "simFiles/"+antType + "/"+antType+"_"+geoType+"_" + dn + "_CH_4.root"; 
+	TFile file2(fname2.Data(), "RECREATE");
+	TTree * tree2 = new TTree("traces", "traces");
+
+	TString fname3 = "simFiles/"+antType+"/"+antType+"_"+geoType+"_" + dn +"CorrHistos.root"; 
   TFile corrFile(fname3.Data(), "RECREATE");
 
-	TH1D * corrHisto = new TH1D("meanPeakCorr", "meanPeakCorr", 250, 0,1);
-	TH1D * rmsHisto = new TH1D("RMS", "RMS", 500, 0.0,0.1);
+  TH1D * corrHisto = new TH1D("meanPeakCorr", "meanPeakCorr", 250, 0,1);
+  TH1D * rmsHisto = new TH1D("RMS", "RMS", 500, 0.0,0.1);
+  TH1D * distHisto = new TH1D("d", "d", 500, 0.0, 5);
   
-	TGraph * g = 0;
+  TGraph * g = 0;
   TGraph * g2 = 0;
 
   int num_traces = traces;
@@ -78,31 +79,10 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   int num_phasors = phasor_num;
   TRandom3 tr1;
   tr1.SetSeed(0);
-  double amp_mean = 9.25;
-  TGraph * ant_response;
+  TGraph * ant_response = new TGraph("L.csv");
   //the numbers for shell and box are empirically determined to be the correct phasor amplitude for 100000 phasors.  the sqrt thing is scaling for different numbers of phasors.
-  //also load up the frequency response because it is a convenient time to do so
-  if (strcmp(antenna_type, "vpol") == 0)
-  {
-    if (strcmp(geometry, "shell") == 0) amp_mean = 7. * sqrt(100000/phasor_num);
-    if (strcmp(geometry, "box") == 0) amp_mean = 4.15 * sqrt(100000/phasor_num);
-    ant_response = new TGraph("L.csv");
-  }
   
-	if (strcmp(antenna_type, "hba") == 0)
-  {
-    if (strcmp(geometry, "shell") == 0) amp_mean = 9. * sqrt(100000/phasor_num);
-    if (strcmp(geometry, "box") == 0) amp_mean = 5.3 * sqrt(100000/phasor_num);
-    ant_response = new TGraph("H.csv");
-  }
-  
-  if (strcmp(antenna_type, "lba") == 0)
-  {
-    if (strcmp(geometry, "shell") == 0) amp_mean = 8.9 * sqrt(100000/phasor_num);
-    if (strcmp(geometry, "box") == 0) amp_mean = 5.25 * sqrt(100000/phasor_num);
-    ant_response = new TGraph("L.csv");
-  }
-  double phasor_x = 0;
+	double phasor_x = 0;
   double phasor_y = 0;
   double phasor_z = 0;
   double phasor_phase = 0;
@@ -130,7 +110,11 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   //time and frequency steps for TGraphs
   double dt = 2*pow(10,-6)/9991;
   double dF = 1/( 9991 * dt);
-  amp_mean = sqrt(kb * 300 * R * dF) * sqrt(100000/phasor_num)/1.36;
+  //setting noise amplitudes
+	double distanceFactor=1;
+	//this is a factor to offset the increased amplitude loss over distance for a shell
+	if (strcmp(geometry, "shell") == 0) distanceFactor=1.69;
+	double amp_mean = sqrt(kb * 300 * R * dF) *distanceFactor* sqrt(100000/phasor_num)/1.517;
 	double amp_noise = sqrt(kb * temp * R * dF);//7.06/sqrt(5); //this is ~75k noise temp amp noise
 
 	double causalTime = ant_sep/3e8;
@@ -154,13 +138,14 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
   double filter_gain = 0;
 
   //set up what we want to put in the TTree
-  /*
-	tree->Branch("trace", &g);
-  tree->Branch("FFTW", fftw_A);
-  tree2->Branch("trace", &g2);
-  tree2->Branch("FFTW", fftw_B);
- */ 
-  
+	if(save)
+	{
+		tree->Branch("trace", &g);
+		tree->Branch("FFTW", fftw_A);
+		tree2->Branch("trace", &g2);
+		tree2->Branch("FFTW", fftw_B);
+	}
+
   for (int t = 0; t < 9991; t++) x_time[t] = dt * t;
   //filter response from data sheet
   TGraph * hp = new TGraph("high_pass.txt");
@@ -231,6 +216,8 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
             if (wall_num == 5) phasor_z = wall_size_z;
             dA = sqrt(pow(phasor_x - ant_x, 2) + pow(phasor_y - ant_y, 2) + pow(phasor_z - ant_zA, 2));
             dB = sqrt(pow(phasor_x - ant_x, 2) + pow(phasor_y - ant_y,2) + pow(phasor_z - ant_zB, 2));
+						distHisto->Fill(dA);
+						distHisto->Fill(dB);
 						double dAz = fabs(phasor_z - ant_zA);
 						double dBz = fabs(phasor_z - ant_zB);
 						double thetaA = TMath::ACos(dAz/dA);
@@ -308,27 +295,34 @@ void phasorModel(const char * dist_name, double ant_sep, int phasor_num=100000, 
 			TGraph * corrGraph = FFTtools::getCorrelationGraph(g,g2);
 			double meanPeakCorr = normalization * findMaxInRangeAboutCenter(corrGraph, causalBins);
 			//if(l%10 == 0) printf("corr max = %g, vrms = %g\n", meanPeakCorr, g->GetRMS(2));
+			//printf("ave dist = %g\n", distHisto->GetMean());
 			corrHisto->Fill(meanPeakCorr);
 			rmsHisto->Fill(g->GetRMS(2));
 			rmsHisto->Fill(g2->GetRMS(2));
-			/*
-      file.cd();
-      tree->Fill();
-      file2.cd();
-      tree2->Fill();
-*/
-      delete g;
+			
+			if(save)
+			{
+				file.cd();
+				tree->Fill();
+				file2.cd();
+				tree2->Fill();
+			}
+
+			delete g;
       delete g2;
 			delete corrGraph;
 		}     
-	/*
-  file.cd();
-  tree->Write();
-	file.Close();
-  file2.cd();
-  tree2->Write();
-	file2.Close();
-*/	
+  
+	if (save)
+	{
+		file.cd();
+		tree->Write();
+		file.Close();
+		file2.cd();
+		tree2->Write();
+		file2.Close();
+	}
+	
 	printf("ave corr = %g, ave rms = %g\n", corrHisto->GetMean(), rmsHisto->GetMean());
 	corrFile.cd();
 	corrHisto->Write();
@@ -350,7 +344,7 @@ void doAll()
  
 	//these spacings are what I used for making the figure we used for GNO paper
   phasorModel("0_cm", 0);
-/*	
+	
 	phasorModel("270_cm", 2.7);
   phasorModel("150_cm", 1.5);
   phasorModel("65_cm", .65);
@@ -371,5 +365,4 @@ void doAll()
   phasorModel("space2", 1.1303);
   phasorModel("space4", 0.9398);
   phasorModel("space3", 1.7653);
-*/
 }
