@@ -18,11 +18,11 @@ ant_sep is the distance betweeen antenna feeds
 
 phasor_num is the number of phasors used to generate each trace
 
-geometry is a string that picks the geometry of the anechoic chamber. currently supported are "box", "shell". Where shell is a spherical shell and the other is a box
+geometry is a string that picks the geometry of the anechoic chamber. currently supported are "box", "shell", "CPbox". Where shell is a spherical shell and the other is a box
 
 traces is the number of traces to be saved in the root file
 
-antenna_type is either "vpol", "hba" or "lba" where lba and hba are the telewaves we used and vpol is the ara vpol.  This just changes what frequency response gets used
+antenna_type is either "vpol", "hba", "lba" or "telewave900" where lba and hba are the telewaves we used and vpol is the ara vpol.  This just changes what frequency response gets used
 
 phasorModel outputs:
 Two .root files are output with names corresponding to fname and fname2 in the code
@@ -31,7 +31,7 @@ At the bottom of the file is a doAll() function, which is just a placeholder to 
 */
 double findMaxInRangeAboutCenter(TGraph * g, int range);
 
-void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_num=100000, const char * geometry = "box", int traces=100, const char * antenna_type = "vpol", double temp = 75)
+void phasorModel(const char * dist_name, double ant_sep, int save=1, const char * antenna_type = "telewave900", const char * geometry = "CPbox", int phasor_num=100000,  int traces=100, double temp = 75)
 {
   //set up where to save the file, get TTrees and TGraphs ready  
   TString dn = dist_name;
@@ -68,6 +68,12 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
   double wall_size_x = 1.5;
   double wall_size_y = 1.5;
   double wall_size_z = 4.;
+	if (strcmp(geometry, "CPbox") == 0)
+	{
+		wall_size_x = 1.27;
+		wall_size_y = 2.1336;
+		wall_size_z = 1.1176;
+	}
 
   //antenna positions
   double ant_x = 0;
@@ -112,13 +118,16 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
   double dF = 1/( 9991 * dt);
   //setting noise amplitudes
 	double distanceFactor=1;
-	//this is a factor to offset the increased amplitude loss over distance for a shell
+	
+	//this is a factor to offset the amplitude loss over distance
 	if (strcmp(geometry, "shell") == 0) distanceFactor=1.69;
-	double amp_mean = sqrt(kb * 300 * R * dF) *distanceFactor* sqrt(100000/phasor_num)/1.517;
-	double amp_noise = sqrt(kb * temp * R * dF);//7.06/sqrt(5); //this is ~75k noise temp amp noise
+	if (strcmp(geometry, "CPbox") == 0) distanceFactor=1/1.63;
+	//this factor at the end is empirically determined to correctly scale 1e5 phasors to 300k noise correctly
+	double amp_mean = sqrt(kb * 300 * R * dF) *distanceFactor* sqrt(100000/phasor_num)/1.515;
+	double amp_noise = sqrt(kb * temp * R * dF); //this is ~75k noise temp amp noise
 
 	double causalTime = ant_sep/3e8;
-	int causalBins = TMath::Ceil(causalTime/dt);
+	int causalBins = 30;//TMath::Ceil(causalTime/dt); //changed this from causal bins to set max bins because otherwise it skews results at large dist
 
   //distances to antennae
   double dA = 0;
@@ -147,15 +156,26 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
 	}
 
   for (int t = 0; t < 9991; t++) x_time[t] = dt * t;
-  //filter response from data sheet
+  
+	//filter responses from data sheet
   TGraph * hp = new TGraph("high_pass.txt");
   for (int j = 0; j < hp->GetN(); j++) hp->GetY()[j] = (pow(10, -hp->GetY()[j]/20));
   
   TGraph * lp = new TGraph("low_pass2.txt");
   for (int j = 0; j < lp->GetN(); j++) lp->GetY()[j] = (pow(10, -lp->GetY()[j]/20));
-  
-  for (int j = 0; j < ant_response->GetN(); j++) ant_response->GetY()[j] = (pow(10, (-2.15-lp->GetY()[j])/20));
-  //loop over desired number of traces 
+
+	if (strcmp(antType, "telewave900") == 0)
+	{
+		lp = new TGraph("NLP1200.txt");
+		for (int j = 0; j < lp->GetN(); j++) lp->GetY()[j] = (pow(10, -lp->GetY()[j]/20));
+		hp = new TGraph("NHP800.txt");
+		for (int j = 0; j < hp->GetN(); j++) hp->GetY()[j] = (pow(10, -hp->GetY()[j]/20));
+	}
+		
+	//heres where antenna response will go
+	for (int j = 0; j < ant_response->GetN(); j++) ant_response->GetY()[j] = (pow(10, (-2.15-lp->GetY()[j])/20));
+  	
+	//loop over desired number of traces 
   for (int l = 0; l < num_traces; l++)
     {
       if (l % 50 == 0) printf("%d\n",l);
@@ -189,7 +209,6 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
 							double dBz = fabs(phasor_z - ant_zB);
 							double thetaA = TMath::ACos(dAz/dA);
 							double thetaB = TMath::ACos(dBz/dB);
-							//try sqrt of sin(theta) plus sqrt(1.76 dbi gain)
               ampA = ampA * sqrt(3./2.)*fabs(TMath::Sin(thetaA));
               ampB = ampB * sqrt(3./2.)*fabs(TMath::Sin(thetaB));
               np = 1;
@@ -198,9 +217,11 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
         }
 
         //generate from a box 
-        if (strcmp(geometry, "box") == 0){
+        if (strcmp(geometry, "box") == 0 || strcmp(geometry, "CPbox") == 0)
+				{
           int np = 0;
-          while (np < 1){
+          while (np < 1)
+					{
             int wall_num = tr1.Integer(6); //pick a wall to generate from
 				    phasor_phase = tr1.Uniform(0, TMath::TwoPi());
 					  ampA = amp_mean * sqrt(-2 * log(tr1.Uniform(0,1)));
@@ -236,15 +257,32 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
 				double polScale = sqrt(2)*fabs(TMath::Sin(pol));
         dAphase = 2 * TMath::Pi() * i * dF * dA/(3 * pow(10,8));
         dBphase = 2 * TMath::Pi() * i * dF * dB/(3 * pow(10,8));
-        
-				temp_A.setMagPhase(polScale * ampA/dA, dAphase + phase);
-        temp_B.setMagPhase(polScale * ampB/dB, dBphase + phase);
+				
+				//brick wall outside of antenna band for now
+				if(strcmp(antenna_type, "hba") == 0)
+				{
+					filter_gain=0;
+					if ((i*dF/pow(10,6)>=350) && (i*dF/pow(10,6)<=460)) filter_gain = 1;
+				}
+				
+				if(strcmp(antenna_type, "telewave900") == 0)
+				{
+					filter_gain = 0;
+					if ((i*dF/pow(10,6)>=700) && (i*dF/pow(10,6)<=1200)) filter_gain = 1;
+				}
+
+				if(strcmp(antenna_type, "lba") == 0)
+				{
+					filter_gain = 0;
+					if ((i*dF/pow(10,6)>=230) && (i*dF/pow(10,6)<=330)) filter_gain = 1;
+				}
+				temp_A.setMagPhase(polScale * ampA/dA * filter_gain, dAphase + phase);
+        temp_B.setMagPhase(polScale * ampB/dB * filter_gain, dBphase + phase);
 
         fftw_A[i].re += temp_A.re;
         fftw_A[i].im += temp_A.im;
         fftw_B[i].re += temp_B.re;
         fftw_B[i].im += temp_B.im;
-        
         
       }
       
@@ -265,15 +303,7 @@ void phasorModel(const char * dist_name, double ant_sep, int save=0, int phasor_
 			for(int i = 0; i< 4996; i++)
 			{
 				filter_gain = hp->Eval(i * dF/pow(10,6)) * lp->Eval(i * dF/pow(10, 6));
-				//don't trust measured s21s 
-				if(strcmp(antenna_type, "hba") == 0)
-				{
-					if ((i*dF/pow(10,6) > 350) && (i*dF/pow(10,6) < 460)) filter_gain = 0;
-				}
-				if(strcmp(antenna_type, "lba") == 0)
-				{
-					if ((i*dF/pow(10,6) > 230) && (i*dF/pow(10,6) < 330)) filter_gain = 0;
-				}
+				
 				double mag_A = fftw_A[i].getAbs();
 				double phase_A = fftw_A[i].getPhase();
 				double mag_B = fftw_B[i].getAbs();
@@ -344,7 +374,6 @@ void doAll()
  
 	//these spacings are what I used for making the figure we used for GNO paper
   phasorModel("0_cm", 0);
-	
 	phasorModel("270_cm", 2.7);
   phasorModel("150_cm", 1.5);
   phasorModel("65_cm", .65);
