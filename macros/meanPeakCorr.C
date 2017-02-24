@@ -24,7 +24,7 @@ void meanPeakCorr(const char * fn, double distance)
 
 	double dt = 2e-6/9991;
 	double causalTime = distance/3e8;
-	int bins = 1 + TMath::Ceil(causalTime/dt);
+	int bins = 30;//1 + TMath::Ceil(causalTime/dt);
 	printf("bins = %d\n", bins);
 
 	TChain chain("traces");
@@ -61,21 +61,17 @@ delete h1;
 
 void doAll()
 {
-	meanPeakCorr("realFiles/ara_vpol_space0", .73025);
-	meanPeakCorr("realFiles/ara_vpol_space1", .78740);
-	meanPeakCorr("realFiles/ara_vpol_space4", .93980);
-	meanPeakCorr("realFiles/ara_vpol_space2", 1.1303);
-	meanPeakCorr("realFiles/ara_vpol_space3", 1.7653);
+/*
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space0", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space1", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space2", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space3", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space4", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/telewave_hba_space5", .42);
+*/
+
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/ara_hpol_parallel_0", .42);
+	meanPeakCorr("/project/avieregg/gno_analysis/anechoic_test_analysis/root_runs_march/ara_hpol_parallel_1", .42);
+
 }
-
-
-
-
-
-
-
-
-
-
-
 

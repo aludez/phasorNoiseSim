@@ -23,11 +23,11 @@ void mpcFig()
 
 	double spaces[] = {1.5, 2.7, 0.001, .01, .05, .1, .15, .2, .25, .35, .4, .45, .5, .55, .65, .73025, .7874, .9398, 1.1303, 1.7653};
 
-	TString anttype = "vpol";
+	TString anttype = "telewave900";
 	TString geomtype= "_shell_";
 	TString dirname = "simFiles/";
 	TString simname = anttype + geomtype;
-	TString simend  = "CorrHistosTEST.root";
+	TString simend  = "CorrHistos.root";
 
 	int simPts = 20;
 	int realPts = 5;
@@ -65,15 +65,15 @@ void mpcFig()
 	//gSim->GetYaxis()->SetTitleFont(102);
 	//gSim->GetXaxis()->SetTitleFont(102);
 	gSim->SetLineWidth(1);
-	gSim->SetLineColor(kRed);
+	gSim->SetLineColor(kRed+1);
 	gSim->SetMarkerStyle(kFullCircle);
-	gSim->SetMarkerColor(kRed);
+	gSim->SetMarkerColor(kRed+1);
 	gSim->SetMarkerSize(.75);
 
 	gReal->SetLineWidth(1);
-	gReal->SetLineColor(kBlue);
+	gReal->SetLineColor(kAzure-5);
 	gReal->SetMarkerStyle(kFullSquare);
-	gReal->SetMarkerColor(kBlue);
+	gReal->SetMarkerColor(kAzure-5);
 	gReal->SetMarkerSize(.7);
 
 	gSim->SetTitle(simname.Data());
@@ -84,11 +84,11 @@ void mpcFig()
 	gSim->GetXaxis()->CenterTitle();
 	gSim->GetYaxis()->CenterTitle();
 	gSim->Draw("ap");
-	gReal->Draw("p");
+	//gReal->Draw("p");
 
 	TLegend * leg = new TLegend(.67, .67, .87, .87);
 	leg->AddEntry(gSim, "Simulation", "p");
-	leg->AddEntry(gReal, "Data", "p");
+	leg->AddEntry(gReal, "Vpol Data", "p");
 	leg->Draw();
 }
 

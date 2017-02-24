@@ -1,4 +1,5 @@
 #include "TGraph.h"
+#include "TGraphPolar.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TRandom3.h"
@@ -30,6 +31,9 @@ Two .root files are output with names corresponding to fname and fname2 in the c
 At the bottom of the file is a doAll() function, which is just a placeholder to run this a bunch of times with different settings.
 */
 double findMaxInRangeAboutCenter(TGraph * g, int range);
+double patchCorrection(double x, double y, double z, double antZ, TGraph * XZ, TGraph * YZ);
+TGraphPolar * makePolar(TGraph * g);
+
 
 void phasorModel(const char * dist_name, double ant_sep, int save=1, const char * antenna_type = "telewave900", const char * geometry = "CPbox", int phasor_num=100000,  int traces=100, double temp = 75)
 {
@@ -171,7 +175,12 @@ void phasorModel(const char * dist_name, double ant_sep, int save=1, const char 
 		hp = new TGraph("NHP800.txt");
 		for (int j = 0; j < hp->GetN(); j++) hp->GetY()[j] = (pow(10, -hp->GetY()[j]/20));
 	}
-		
+	//load in patch antenna beam pattern
+	TGraph * patchXZ = new TGraph("PatchXZPlane.txt");
+	TGraph * patchYZ = new TGraph("PatchYZPlane.txt");
+	TGraphPolar * polarXZ = makePolar(patchXZ);
+	TGraphPolar * polarYZ = makePolar(patchYZ);
+
 	//heres where antenna response will go
 	for (int j = 0; j < ant_response->GetN(); j++) ant_response->GetY()[j] = (pow(10, (-2.15-lp->GetY()[j])/20));
   	
@@ -209,9 +218,17 @@ void phasorModel(const char * dist_name, double ant_sep, int save=1, const char 
 							double dBz = fabs(phasor_z - ant_zB);
 							double thetaA = TMath::ACos(dAz/dA);
 							double thetaB = TMath::ACos(dBz/dB);
-              ampA = ampA * sqrt(3./2.)*fabs(TMath::Sin(thetaA));
-              ampB = ampB * sqrt(3./2.)*fabs(TMath::Sin(thetaB));
-              np = 1;
+              if(strcmp(antenna_type, "patch") != 0)
+							{
+								ampA = ampA * sqrt(3./2.)*fabs(TMath::Sin(thetaA));
+								ampB = ampB * sqrt(3./2.)*fabs(TMath::Sin(thetaB));
+							}
+							if(strcmp(antenna_type, "patch") == 0)
+							{
+								ampA = ampA * patchCorrection(phasor_x, phasor_y, phasor_z, ant_zA, patchXZ, patchYZ);
+								ampB = ampB * patchCorrection(phasor_x, phasor_y, phasor_z, ant_zB, patchXZ, patchYZ);
+							}
+							np = 1;
             }
           }
         }
@@ -243,8 +260,16 @@ void phasorModel(const char * dist_name, double ant_sep, int save=1, const char 
 						double dBz = fabs(phasor_z - ant_zB);
 						double thetaA = TMath::ACos(dAz/dA);
 						double thetaB = TMath::ACos(dBz/dB);
-            ampA = ampA * sqrt(3./2.)*fabs(TMath::Sin(thetaA));
-            ampB = ampB * sqrt(3./2.)*fabs(TMath::Sin(thetaB));
+            if(strcmp(antenna_type, "patch") != 0)
+						{
+							ampA = ampA * sqrt(3./2.)*fabs(TMath::Sin(thetaA));
+							ampB = ampB * sqrt(3./2.)*fabs(TMath::Sin(thetaB));
+						}
+						if(strcmp(antenna_type, "patch") == 0)
+						{
+							ampA = ampA;
+							ampB = ampB;
+						}
             np = 1;
           }
         }
@@ -268,7 +293,7 @@ void phasorModel(const char * dist_name, double ant_sep, int save=1, const char 
 				if(strcmp(antenna_type, "telewave900") == 0)
 				{
 					filter_gain = 0;
-					if ((i*dF/pow(10,6)>=700) && (i*dF/pow(10,6)<=1200)) filter_gain = 1;
+					if ((i*dF/pow(10,6)>=750) && (i*dF/pow(10,6)<=1050)) filter_gain = 1;
 				}
 
 				if(strcmp(antenna_type, "lba") == 0)
@@ -368,6 +393,35 @@ double findMaxInRangeAboutCenter(TGraph * g, int range)
 	if(fabs(min)>max) max = fabs(min);
 	return max;
 }
+
+
+double patchCorrection(double x, double y, double z, double antZ, TGraph * XZ, TGraph * YZ)
+{
+	double newz = z-antZ;
+	double thetaXZ = TMath::ATan2(newz,x);
+	double thetaYZ = TMath::ATan2(newz,y);
+	return newz;
+}
+
+
+TGraphPolar * makePolar(TGraph * g)
+{
+	const int N = g->GetN();
+	double thetaArray[N];
+	double rArray[N];
+	for (int i = 0; i < N; i++)
+	{
+		double x = g->GetX()[i];
+		double y = g->GetY()[i];
+		double theta = TMath::ATan2(x,y);
+		double r = sqrt(pow(x,2) + pow(y,2));
+		thetaArray[i] = theta;
+		rArray[i] = r;
+	}
+	TGraphPolar * theReturn = new TGraphPolar(N, thetaArray, rArray);
+	return theReturn;
+}
+
 
 void doAll()
 {

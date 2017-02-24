@@ -6,7 +6,7 @@
 #include "TLegend.h"
 #include "TStyle.h"
 #include "TROOT.h"
-
+#include "TColor.h"
 
 void mpcFig2Types()
 {
@@ -23,12 +23,14 @@ void mpcFig2Types()
 
 	double spaces[] = {1.5, 2.7, 0.001, .01, .05, .1, .15, .2, .25, .35, .4, .45, .5, .55, .65, .73025, .7874, .9398, 1.1303, 1.7653};
 
-	TString anttype = "vpol";
+	TString anttype = "telewave900";
 	TString geomtype= "_box_";
+	TString geomtype2= "_CPbox_";
 	TString dirname = "simFiles/";
 	TString simname = anttype + geomtype;
+	TString simname2 = anttype + geomtype2;
 	TString simend  = "CorrHistos.root";
-	TString simend2  = "CorrHistosTEST.root";
+	TString simend2  = "CorrHistos.root";
 
 	int simPts = 20;
 	int realPts = 5;
@@ -44,7 +46,7 @@ void mpcFig2Types()
 		TFile f(histoFile.Data());
 		TH1F * h = (TH1F*) f.Get("meanPeakCorr");
 		
-		TString histoFile2 = dirname + anttype + "/"+anttype+geomtype + curr + simend2;
+		TString histoFile2 = dirname + anttype + "/"+anttype+geomtype2 + curr + simend2;
 		TFile f2(histoFile2.Data());
 		TH1F * h2 = (TH1F*) f2.Get("meanPeakCorr");
 
@@ -73,24 +75,24 @@ void mpcFig2Types()
 	//gSim->GetYaxis()->SetTitleFont(102);
 	//gSim->GetXaxis()->SetTitleFont(102);
 	gSim->SetLineWidth(1);
-	gSim->SetLineColor(kRed);
+	gSim->SetLineColor(kRed+1);
 	gSim->SetMarkerStyle(kFullCircle);
-	gSim->SetMarkerColor(kRed);
+	gSim->SetMarkerColor(kRed+1);
 	gSim->SetMarkerSize(.75);
 
 	gSim2->SetLineWidth(1);
-	gSim2->SetLineColor(kMagenta+1);
+	gSim2->SetLineColor(kAzure-5);
 	gSim2->SetMarkerStyle(kFullCircle);
-	gSim2->SetMarkerColor(kMagenta+1);
+	gSim2->SetMarkerColor(kAzure-5);
 	gSim2->SetMarkerSize(.75);
 	
 	gReal->SetLineWidth(1);
-	gReal->SetLineColor(kBlue);
+	gReal->SetLineColor(kViolet-3);
 	gReal->SetMarkerStyle(kFullSquare);
-	gReal->SetMarkerColor(kBlue);
+	gReal->SetMarkerColor(kViolet-3);
 	gReal->SetMarkerSize(.7);
 
-	gSim->SetTitle(simname.Data());
+	gSim->SetTitle("BoxSim, ShellSim, and Real data");
 	gSim->GetXaxis()->SetLimits(.0007,4);
 	gSim->GetYaxis()->SetRangeUser(0,1);
 	gSim->GetXaxis()->SetTitle("Distance Between Antennas (m)");
@@ -102,8 +104,8 @@ void mpcFig2Types()
 	gReal->Draw("p");
 
 	TLegend * leg = new TLegend(.67, .67, .87, .87);
-	leg->AddEntry(gSim, "Simulation (old noise)", "p");
-	leg->AddEntry(gSim2, "Simulation (new noise)", "p");
+	leg->AddEntry(gSim, simname.Data(), "p");
+	leg->AddEntry(gSim2, simname2.Data(), "p");
 	leg->AddEntry(gReal, "Data", "p");
 	leg->Draw();
 }
